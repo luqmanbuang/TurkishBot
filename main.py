@@ -15,7 +15,7 @@ dispatcher = updater.dispatcher
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
-# initialize src and dest
+# initialize source language (src) and destination language (dest)
 src = None
 dest = None
 
@@ -57,8 +57,6 @@ TTE_handler = CommandHandler('TTE', TTE)
 dispatcher.add_handler(TTE_handler)
 
 # ETT
-
-
 def ETT(update, context):
     global src, dest
     src = 'en'
@@ -71,8 +69,6 @@ ETT_handler = CommandHandler('ETT', ETT)
 dispatcher.add_handler(ETT_handler)
 
 # 3 Translates messages
-
-
 def translate(update, context):
     trans = Translator()
     sentence = update.message.text
@@ -97,7 +93,7 @@ dispatcher.add_handler(echo_handler)
 
 
 
-# 6 /stop1234; stops server
+# 4 /stop1234; stops server
 def shutdown():
     updater.stop()
     updater.is_idle = False
@@ -111,7 +107,7 @@ stop_handler = CommandHandler('stop1234', stop)
 dispatcher.add_handler(stop_handler)
 
 
-# 7 unknown command error; Returns error when invalid command is input
+# 4 unknown command error; Returns error when invalid command is input
 def unknown(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id,
                              text="Invalid command, please use /help for the list of commands")
