@@ -118,7 +118,6 @@ def VoiceToggle(update, context):
 
 # Voice translation, Returns audio file of the pronunciation
 def VoiceTranslate(update, context, sentence):
-    # 
     output = gTTS(text=sentence, lang=dest, slow=False)
     output.save("output.mp3")
     context.bot.send_voice(chat_id=update.effective_chat.id, voice=open('output.mp3', 'rb'))
