@@ -8,7 +8,7 @@ from gtts import gTTS
 
 # Create updater object
 updater = Updater(
-    token='1287122577:AAFIhnct_egW-0fhciQYg4pplj9yJyMSTu0', use_context=True)
+    token='API TOKEN', use_context=True)
 dispatcher = updater.dispatcher
 
 # logging module, so you will know when (and why) things don't work as expected
