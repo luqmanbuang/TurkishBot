@@ -1,6 +1,6 @@
 import logging
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackQueryHandler, Filters
 from googletrans import Translator
 import threading
 from gtts import gTTS
@@ -8,24 +8,28 @@ from gtts import gTTS
 
 # Create updater object
 updater = Updater(
-    token='1287122577:AAFIhnct_egW-0fhciQYg4pplj9yJyMSTu0', use_context=True)
+    token='API TOKEN', use_context=True)
 dispatcher = updater.dispatcher
 
 # logging module, so you will know when (and why) things don't work as expected
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
-# initialize source language (src) and destination language (dest)
-src = None
-dest = None
+# initialize src and dest
+src = 'en'
+dest = 'tr'
 
+# initialize voice toggle
+voice_toggle = True
+voicemode = "ON" 
 
 #  ------------------------------- vv Handlers vv ------------------------------ #
+
 
 # 1 /start; Function called every time the Bot receives a Telegram message that contains the /start command
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id,
-                             text="Welcome to Luqman's testing ground! :)\nInput /help for the list of commands")
+                             text="Welcome to Luqman's testing ground! :)\n\nTo select or change translation mode input /change!")
 
 start_handler = CommandHandler('start', start)
 dispatcher.add_handler(start_handler)
@@ -34,13 +38,50 @@ dispatcher.add_handler(start_handler)
 # 2 /help; Returns a list of commands that can be used in the bot
 def help_input(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id,
-                             text='List of commands that you can use in this bot!\n\n/start - Start the bot \n/ETT - Activate English to Turkish Translation \n/TTE - Activate Turkish to English Translation', )
+                             text='To change translation language input /change')
 
 
 help_handler = CommandHandler('help', help_input)
 dispatcher.add_handler(help_handler)
 
 
+# 3 /change; Change translation language
+def change(update, context):
+    keyboard = [[InlineKeyboardButton("Turkish to English", callback_data='1'), InlineKeyboardButton("English to Turkish", callback_data='2')],
+    [InlineKeyboardButton(text="Voice Toggle ON/OFF", callback_data="vtoggle")],
+    [InlineKeyboardButton(text="Check out the source code on Github!", url="https://github.com/luqmanbuang/TurkishBot")]]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    if src == 'tr':
+        langmode = 'Turkish to English'
+    else:
+        langmode = "English to Turkish"
+
+    update.message.reply_text(f'Current mode: {langmode}\nVoice toggle = {voicemode}', reply_markup=reply_markup)
+
+
+change_handler = CommandHandler('change', change)
+dispatcher.add_handler(change_handler)
+
+
+def button(update, context):
+    query = update.callback_query
+
+    # CallbackQueries need to be answered, even if no notification to the user is needed
+    # Some clients may have trouble otherwise. See https://core.telegram.org/bots/api#callbackquery
+    query.answer()
+
+    # calls appropriate function based on selected translation mode 
+    if query.data == '1':
+        TTE(update, context)
+    elif query.data == '2':
+        ETT(update, context)
+    elif query.data == 'vtoggle':
+        VoiceToggle(update, context)
+
+
+dispatcher.add_handler(CallbackQueryHandler(button))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -53,9 +94,6 @@ def TTE(update, context):
                              text="Turkish to English translation activated")
 
 
-TTE_handler = CommandHandler('TTE', TTE)
-dispatcher.add_handler(TTE_handler)
-
 # ETT
 def ETT(update, context):
     global src, dest
@@ -65,8 +103,28 @@ def ETT(update, context):
                              text="English to Turkish translation activated")
 
 
-ETT_handler = CommandHandler('ETT', ETT)
-dispatcher.add_handler(ETT_handler)
+# Voice toggle
+def VoiceToggle(update, context):
+    global voice_toggle, voicemode
+    voice_toggle = not voice_toggle
+
+    if voice_toggle:
+        voicemode = "ON"
+    else:
+        voicemode = "OFF"
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text=f"Voice mode is {voicemode}")
+
+
+# Voice translation, Returns audio file of the pronunciation
+def VoiceTranslate(update, context, sentence):
+    # 
+    output = gTTS(text=sentence, lang=dest, slow=False)
+    output.save("output.mp3")
+    context.bot.send_voice(chat_id=update.effective_chat.id, voice=open('output.mp3', 'rb'))
+
+
+
 
 # 3 Translates messages
 def translate(update, context):
@@ -77,11 +135,9 @@ def translate(update, context):
         translation = trans.translate(text=sentence, src=src, dest=dest)
         context.bot.send_message(chat_id=update.effective_chat.id, text=f"Translation:\n{translation.text}")
 
-        # Returns audio file of the pronunciation
-        output = gTTS(text=translation.text, lang=dest, slow=False)
-        output.save("output.mp3")
-        context.bot.send_voice(
-            chat_id=update.effective_chat.id, voice=open('output.mp3', 'rb'))
+        if voice_toggle:
+            VoiceTranslate(update, context, translation.text)
+
     else:
         return
 
@@ -90,7 +146,6 @@ echo_handler = MessageHandler(Filters.text & (~Filters.command), translate)
 dispatcher.add_handler(echo_handler)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 
 
 # 4 /stop1234; stops server
@@ -103,14 +158,14 @@ def stop(bot, update):
     threading.Thread(target=shutdown).start()
 
 
-stop_handler = CommandHandler('stop1234', stop)
+stop_handler = CommandHandler('stop', stop)
 dispatcher.add_handler(stop_handler)
 
 
-# 4 unknown command error; Returns error when invalid command is input
+# 5 unknown command error; Returns error when invalid command is input
 def unknown(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id,
-                             text="Invalid command, please use /help for the list of commands")
+                             text="Invalid command, please use /change to change the translation mode!")
 
 
 unknown_handler = MessageHandler(Filters.command, unknown)
@@ -121,4 +176,3 @@ dispatcher.add_handler(unknown_handler)
 
 updater.start_polling()
 updater.idle
-
